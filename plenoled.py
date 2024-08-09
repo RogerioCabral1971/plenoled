@@ -1,5 +1,6 @@
 import os
 import datetime
+import locale
 import streamlit as st
 import pandas as pd
 import montar_pag as pag
@@ -16,6 +17,7 @@ dt_inicio=today-datetime.timedelta(15)
 dia=datetime.timedelta(1)
 dire=ext.ler_toml()['pastas']['dir']
 custoOperacional=pd.read_parquet(f'{dire}CustoOperacional.parquet')
+custoDia=custoOperacional['Custo Mensal'].sum()/30
 
 my_bar1 = st.progress(0, text='# :gray-background[ :red[**ATUALIZANDO BASES,  A G U A R D E ...**]]')
 
@@ -64,17 +66,18 @@ def gerar_relatorios_tela(inicial, fim):
             col_aba4_1, col_aba4_2 = st.columns([0.55,0.45])
 
             with col_aba4_1:
-                with st.container(height=500):
+                with st.container(height=650):
                     contem = st.container()
                     custos = st.data_editor(custoOperacional, hide_index=True, num_rows='dynamic')
                     if contem.button('Salvar'):
                         custos.to_parquet(f'{dire}CustoOperacional.parquet')
                         st.rerun()
 
+
             with col_aba4_2:
-                with st.container(height=500):
-                    st.markdown('''
-                    Informar na tabela ao lado os custos que serão deduzidos da venda bruta
+                with st.container(height=650):
+                    st.markdown(f'''
+                    Informar na tabela ao lado os custos que serão deduzidos da Venda Bruta
                     
                     - Esses custos são de operação para o negocio funcionar, como exemplo, água, luz, salário e etc...
                     - Lembrando que os custos das mercadorias já são informados automaticamente pelo Sistema Bling, portanto 
@@ -88,6 +91,11 @@ def gerar_relatorios_tela(inicial, fim):
                     1. :orange[Comercial]
                     1. :orange[Mercado Livre]
                     1. :orange[Tray]
+                    
+                    :orange[CUSTO POR DIA:] :blue-background[{locale.currency(custoDia,grouping=True)}]
+                    :orange[CUSTO POR MÊS:] :blue-background[{locale.currency(custoOperacional['Custo Mensal'].sum(),grouping=True)}]
+                    
+                    ***O custo acima são valores informados na Tabela ao Lado, não estão somados aqui os custo que são calculados de acordo com o*** :blue-background[percentual da venda]
                     ''')
 
     else:
@@ -104,6 +112,7 @@ with st.container(border=True):
 
     periodo=menu.date_input('Selecione o Periodo', value=(pd.to_datetime(f'{today-datetime.timedelta(30)}'), pd.to_datetime(f'{today}')))
     CTbut = menu.container()
+    menu.markdown("""Período para Analise das vendas( :orange[Dados armazenado de 6 meses] )""")
 
     #st.session_state['custo_operacional'] = pd.read_parquet(f'{dire}CustoOperacional.parquet')
 
@@ -111,13 +120,17 @@ with st.container(border=True):
     if menu.button('Resetar Aplicativo'):
         os.remove(f'{dire}pedidos_venda.parquet')
         os.remove(f'{dire}pesos.parquet')
+        st.session_state.clear()
         st.rerun()
-
+    menu.markdown("""Limpar dados Armazenados local e baixar dados antigos e novos ( :orange[Será feito limpeza e baixado todas as informações novamente do Bling] )""")
     menu.divider()
+
     menu.write(':blue-background[Versão Atual: 1.1]')
     if menu.button('Baixar Nova Atualização'):
         baixar_atualização.atualizar()
         st.rerun()
+    menu.markdown(
+        """Baixar atualizações feito para o Aplicativo de Dashboard ( :orange[Baixar Atualizações para o Aplicativo] )""")
 
 
 # ATUALIZAÇÃO DA BASE DE DADOS
@@ -128,13 +141,13 @@ if os.path.isfile(f'{dire}pedidos_venda.parquet'):
 
 else:
     vendas=pd.DataFrame()
-    dt_inicial = pd.to_datetime(format(pd.to_datetime(today-datetime.timedelta(183)), '%Y-%m-%d'))
+    dt_inicial = pd.to_datetime(atualizar_bases.dataBase)
     #atualizado=pd.to_datetime(today)==dt_inicial
 
 if 'base_atualizada' not in st.session_state:
     st.session_state['base_atualizada']=atualizar_bases.vendas(vendas, format(dt_inicial, '%Y-%m-%d'))
 
-if dt_inicial!=format(pd.to_datetime(today-datetime.timedelta(183)), '%Y-%m-%d'):
+if dt_inicial!=format(atualizar_bases.dataBase):
     if len(vendas)==0:
         vendas=pd.read_parquet(f'{dire}pedidos_venda.parquet')
     atualizar_bases.atualizar_situacao(vendas)

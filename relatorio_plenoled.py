@@ -2,7 +2,7 @@ import pandas as pd
 import vendas as vd
 #import nf as nf
 
-status_pedido = ['Pago','Em Expedição','Em Produção','Finalizado','Nota Fiscal Antecipada', 'Em falta']
+status_pedido = ['Em Expedição','Finalizado','Nota Fiscal Antecipada']
 
 def resumo_canal_new(dt_inicial,dt_fim):
     df = vd.vendas('url', dt_inicial, dt_fim, status_pedido)

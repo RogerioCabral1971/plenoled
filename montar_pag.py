@@ -193,6 +193,7 @@ def tabela_produto(df):
     df_resumo['Total Custo'] = df_resumo['Total Custo'].map(lambda x: locale.currency(x, grouping=True))
     df_resumo['Venda Líquida'] = df_resumo['Venda Líquida'].map(lambda x: locale.currency(x, grouping=True))
     df_resumo['IMPOSTO'] = df_resumo['IMPOSTO'].map(lambda x: locale.currency(x, grouping=True))
+    df_resumo['CustoEnvio'] = df_resumo['CustoEnvio'].map(lambda x: locale.currency(x, grouping=True))
 
     df_resumo=pd.DataFrame(df_resumo).reset_index()
 

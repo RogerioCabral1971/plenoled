@@ -8,12 +8,13 @@ import xmltodict
 
 dire=extr.ler_toml()['pastas']['dir']
 today = datetime.datetime.now()
+dataBase=format(pd.to_datetime(today-datetime.timedelta(20)), '%Y-%m-%d')
 
 
 def atualizar_situacao(pedidos_vendas):
   df_nf = pd.read_parquet(f'{dire}notas_fiscais.parquet')
   #pedidos_vendas.drop(columns={'index'}, inplace=True)
-  id_aberto = pedidos_vendas.query('Descr_situacao=="Em aberto"')
+  id_aberto = pedidos_vendas.query('Descr_situacao!="Finalizado"')
   if len(id_aberto)>0:
     for idx in id_aberto.index:
       if id_aberto['id'][idx] in list(df_nf['id']):
@@ -23,7 +24,7 @@ def atualizar_situacao(pedidos_vendas):
 
 def vendas(df_orig, dt_inicial):
   dt_fim = format(pd.to_datetime(today), '%Y-%m-%d')
-  if dt_inicial!=format(pd.to_datetime(today-datetime.timedelta(183)), '%Y-%m-%d'):
+  if dt_inicial!=format(dataBase):
     dt_inicial = format(pd.to_datetime(dt_fim) - datetime.timedelta(5), '%Y-%m-%d')
     reiniciar=False
   else:
@@ -78,7 +79,7 @@ def vendas(df_orig, dt_inicial):
     df_orig.drop(columns={'index', 'level_0'}, inplace=True)
     df_orig = df_orig.drop_duplicates()
     df_orig=df_orig.reset_index()
-    df_orig.query('numero!=0').to_parquet(f'{dire}pedidos_venda.parquet')
+    df_orig.query('numero!=0 and Descr_situacao=="Finalizado" and Descr_situacao!="Cancelado"').to_parquet(f'{dire}pedidos_venda.parquet')
     if reiniciar!=True:
       df.drop(columns={'index', 'level_0'}, inplace=True)
     df = df.drop_duplicates()
@@ -103,17 +104,20 @@ def nf_falta(df, reiniciar):
       cont_bar=0
     cont_bar=cont_bar+1
     my_bar.progress(cont_bar, text=f'Pedidos Lido...: {cont} de {len(df["id"])}')
-    url = f"https://bling.com.br/Api/v3/pedidos/vendas/{id}"
+    url = f"https://bling.com.br/Api/v3/pedidos/vendas/{int(id)}"
     response_vendas = extr.extrai(url)
     nf = pd.DataFrame([response_vendas.json()['data']])
+    nf.loc[0, 'Emitida'] = response_vendas.json()['data']['notaFiscal']['id']
+    nf.loc[0, 'SIT'] = response_vendas.json()['data']['situacao']['id']
     df_nf = pd.concat([df_nf, nf])
+  df_nf = df_nf.query('SIT!=12')
+  df_nf = df_nf.query('Emitida>0')
   df_nf=df_nf.reset_index()
   df_nf.drop(columns={'index'}, inplace=True)
   df_nf_fim=pd.concat([df_nf,df_nf_orig])
   df_nf=df_nf.reset_index()
   df_nf_fim.to_parquet(f'{dire}notas_fiscais.parquet')
   my_bar.empty()
-
 
 def extrair_custos():
   url = "https://bling.com.br/Api/v3/produtos/fornecedores?pagina="
@@ -174,7 +178,7 @@ def extrair_prod_peso():
 
 
 def valida_dados(df, dt_inicial):
-  if dt_inicial != pd.to_datetime('2023-01-01'):
+  if dt_inicial != pd.to_datetime(dataBase):
     my_bar = st.progress(0, text="Validando Dados")
     nf = pd.read_parquet(f'{dire}notas_fiscais.parquet')
     df_id=df.query(f'id not in ({list(nf["id"])})')

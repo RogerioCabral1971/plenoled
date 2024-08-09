@@ -50,7 +50,7 @@ def refreshToken():
 
 
 def codigo_acesso():
-    codigo='4416161fad3b61c8c6cd10f7ef220f2a86155da7'
+    codigo='e0d8ce7b32d6032b2dee5eaedbd61d1d111c80aa'
     base64_encoded_clientid_clientsecret = base64.b64encode(str.encode(f'{CLIENT_ID}:{CLIENT_SECRET}'))
     base64_encoded_clientid_clientsecret = base64_encoded_clientid_clientsecret.decode('ascii')
     url = f"https://bling.com.br/Api/v3/oauth/token"
