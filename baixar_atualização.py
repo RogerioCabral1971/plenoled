@@ -1,5 +1,5 @@
 from git import Repo
-import app.extrair_informacoes as ext
+import extrair_informacoes as ext
 import datetime
 import os
 
