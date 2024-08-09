@@ -101,6 +101,7 @@ with st.container(border=True):
     col1,col2,col3,col4,col5,col6=st.columns([0.2,0.1,0.2,0.1,0.1,0.1])
     col1.image(f'{dire}img/plenoled.com.br.webp',width=250)
     menu = st.sidebar
+
     periodo=menu.date_input('Selecione o Periodo', value=(pd.to_datetime(f'{today-datetime.timedelta(30)}'), pd.to_datetime(f'{today}')))
     CTbut = menu.container()
 
@@ -113,6 +114,7 @@ with st.container(border=True):
         st.rerun()
 
     menu.divider()
+    menu.write(':blue-background[Versão Atual: 1.0]')
     if menu.button('Baixar Nova Atualização'):
         baixar_atualização.atualizar()
         st.rerun()
