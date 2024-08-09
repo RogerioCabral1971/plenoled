@@ -1,14 +1,16 @@
 from git import Repo
-import extrair_informacoes as ext
-import shutil
+import app.extrair_informacoes as ext
 import datetime
+import os
 
-today=datetime.date.today()
-dia=today.strftime('%d/%m/%Y')
+def atualizar():
+    today=datetime.date.today()
+    dia=today.strftime('%d%m%Y')
 
-dire=ext.ler_toml()['pastas']['dir']
-repo_url = 'https://github.com/RogerioCabral1971/plenoled'
-local_dir = fr'{dire}app'
+    dire=ext.ler_toml()['pastas']['dir']
+    repo_url = 'https://github.com/RogerioCabral1971/plenoled'
+    local_dir = rf'{dire}appNovo'
 
-shutil.copytree(fr'{dire}app', fr'{dire}app{dia}')
-repo = Repo.clone_from(repo_url, local_dir)
+    repo = Repo.clone_from(repo_url, local_dir)
+    os.rename(rf'{dire}app', fr'{dire}app{str(dia)}')
+    os.rename(rf'{dire}appNovo', rf'{dire}app')
