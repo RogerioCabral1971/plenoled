@@ -114,7 +114,7 @@ with st.container(border=True):
         st.rerun()
 
     menu.divider()
-    menu.write(':blue-background[Versão Atual: 1.0]')
+    menu.write(':blue-background[Versão Atual: 1.1]')
     if menu.button('Baixar Nova Atualização'):
         baixar_atualização.atualizar()
         st.rerun()
