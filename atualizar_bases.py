@@ -8,7 +8,7 @@ import xmltodict
 
 dire=extr.ler_toml()['pastas']['dir']
 today = datetime.datetime.now()
-dataBase=format(pd.to_datetime(today-datetime.timedelta(20)), '%Y-%m-%d')
+dataBase=format(pd.to_datetime(today-datetime.timedelta(183)), '%Y-%m-%d')
 
 
 def atualizar_situacao(pedidos_vendas):

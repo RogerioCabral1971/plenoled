@@ -18,8 +18,10 @@ dia=datetime.timedelta(1)
 dire=ext.ler_toml()['pastas']['dir']
 custoOperacional=pd.read_parquet(f'{dire}CustoOperacional.parquet')
 custoDia=custoOperacional['Custo Mensal'].sum()/30
+atualiza=False
 
 my_bar1 = st.progress(0, text='# :gray-background[ :red[**ATUALIZANDO BASES,  A G U A R D E ...**]]')
+
 
 #Verificar se arquivo de pedidos de venda está atualizado, se não estiver será atualizado
 if os.path.isfile(f'{dire}\pedidos_venda.parquet'):
@@ -29,11 +31,14 @@ if os.path.isfile(f'{dire}\pedidos_venda.parquet'):
     if arquivo_data!=today.strftime('%d/%m/%Y'):
         os.remove(f'{dire}pedidos_venda.parquet')
         os.remove(f'{dire}pesos.parquet')
+        atualizar_bases.extrair_custos()
+        atualiza=True
+
 
 with open(f'{dire}styles.css') as f:
     st.markdown(f'<style>{f.read()}<style>', unsafe_allow_html=True)
 
-atualizar_bases.extrair_custos()
+
 
 def gerar_relatorios_tela(inicial, fim):
     #df = rel.resumo_canal(inicial, fim)
@@ -135,26 +140,27 @@ with st.container(border=True):
 
 # ATUALIZAÇÃO DA BASE DE DADOS
 
-if os.path.isfile(f'{dire}pedidos_venda.parquet'):
-    vendas=pd.read_parquet(f'{dire}pedidos_venda.parquet')
-    dt_inicial = pd.to_datetime(vendas['data'].max())
-
-else:
-    vendas=pd.DataFrame()
-    dt_inicial = pd.to_datetime(atualizar_bases.dataBase)
-    #atualizado=pd.to_datetime(today)==dt_inicial
-
-if 'base_atualizada' not in st.session_state:
-    st.session_state['base_atualizada']=atualizar_bases.vendas(vendas, format(dt_inicial, '%Y-%m-%d'))
-
-if dt_inicial!=format(atualizar_bases.dataBase):
-    if len(vendas)==0:
+if atualiza:
+    if os.path.isfile(f'{dire}pedidos_venda.parquet'):
         vendas=pd.read_parquet(f'{dire}pedidos_venda.parquet')
-    atualizar_bases.atualizar_situacao(vendas)
-atualizar_bases.valida_dados(vendas, dt_inicial)
+        dt_inicial = pd.to_datetime(vendas['data'].max())
+
+    else:
+        vendas=pd.DataFrame()
+        dt_inicial = pd.to_datetime(atualizar_bases.dataBase)
+        #atualizado=pd.to_datetime(today)==dt_inicial
+
+    if 'base_atualizada' not in st.session_state:
+        st.session_state['base_atualizada']=atualizar_bases.vendas(vendas, format(dt_inicial, '%Y-%m-%d'))
+
+    if dt_inicial!=format(atualizar_bases.dataBase):
+        if len(vendas)==0:
+            vendas=pd.read_parquet(f'{dire}pedidos_venda.parquet')
+    #atualizar_bases.atualizar_situacao(vendas)
+#atualizar_bases.valida_dados(vendas, dt_inicial)
 aba1, aba2, aba3, aba4 = st.tabs(['Histórico de Vendas', 'Resumo Canal de Venda', 'Resumo por Mercadoria', 'Custos Fixos'])
 
-
+my_bar1.empty()
 
 # GERAÇÃO DOS RELATÓRIOS
 if CTbut.button(f'Aplicar Filtro'):
@@ -164,7 +170,7 @@ if CTbut.button(f'Aplicar Filtro'):
 else:
     gerar_relatorios_tela(pd.to_datetime(dt_inicio), pd.to_datetime(f'{today}'))
 
-my_bar1.empty()
+
 
 
 

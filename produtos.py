@@ -69,7 +69,7 @@ def produtos_vendidos(id):
     df_itens['Total Custo'] = (df_itens['PREÇO DE CUSTO']*df_itens['Quantidade']) #+(df_itens['IMPOSTO'])
     df_itens=peso(df_itens)
     try:
-        return df_itens[colunas].sort_values(by='R$ Total',ascending=False), df_frete
+        return df_itens[colunas].drop_duplicates().sort_values(by='R$ Total',ascending=False), df_frete
     except Exception as e:
         st.markdown(":red[Erro em: ]" + (str(e).replace('not in index','').replace("['",'').replace("']",'').strip()))
 
