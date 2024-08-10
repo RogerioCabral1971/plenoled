@@ -19,6 +19,7 @@ dire=ext.ler_toml()['pastas']['dir']
 custoOperacional=pd.read_parquet(f'{dire}CustoOperacional.parquet')
 custoDia=custoOperacional['Custo Mensal'].sum()/30
 atualiza=False
+ver=1.2
 
 my_bar1 = st.progress(0, text='# :gray-background[ :red[**ATUALIZANDO BASES,  A G U A R D E ...**]]')
 
@@ -33,6 +34,9 @@ if os.path.isfile(f'{dire}\pedidos_venda.parquet'):
         os.remove(f'{dire}pesos.parquet')
         atualizar_bases.extrair_custos()
         atualiza=True
+else:
+    atualizar_bases.extrair_custos()
+    atualiza = True
 
 
 with open(f'{dire}styles.css') as f:
@@ -130,7 +134,7 @@ with st.container(border=True):
     menu.markdown("""Limpar dados Armazenados local e baixar dados antigos e novos ( :orange[Será feito limpeza e baixado todas as informações novamente do Bling] )""")
     menu.divider()
 
-    menu.write(':blue-background[Versão Atual: 1.1]')
+    menu.write(f':blue-background[Versão Atual: {ver}]')
     if menu.button('Baixar Nova Atualização'):
         baixar_atualização.atualizar()
         st.rerun()
