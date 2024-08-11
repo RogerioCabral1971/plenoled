@@ -6,15 +6,18 @@ status_pedido = ['Em Expedição','Finalizado','Nota Fiscal Antecipada']
 
 def resumo_canal_new(dt_inicial,dt_fim):
     df = vd.vendas('url', dt_inicial, dt_fim, status_pedido)
-    df_resumo = df[0]
-    df_prod=df[1]
-    df_frete=df[2]
-    if len(df[0]) > 0:
-        df2 = df_resumo.groupby('origem_venda').total.agg('count')
-        df2=df2.reset_index()
-        df2=df2.rename(columns={'origem_venda':'Canal de Venda'})
+    #df_resumo = df[0]
+    df_prod=df[0]
+    df_frete=df[1]
+    if len(df[1]) > 0:
+        #df2 = df_resumo.groupby('origem_venda').total.agg('count')
+        df2 = df_prod.groupby('Canal de Venda')['R$ Total'].count()
+        df2 = df2.reset_index()
+        #df2=df2.rename(columns={'origem_venda':'Canal de Venda'})
+        df2 = df2.rename(columns={'R$ Total': 'total'})
         df_resumo=df_prod.groupby('Canal de Venda')[['R$ Total','Total Custo', 'IMPOSTO', 'CustoEnvio']].sum()
         df_resumo=pd.merge(df_resumo, df2, how='inner', on='Canal de Venda')
+
     return df_resumo, df_prod, df_frete
 
 def resumo_canal(dt_inicial,dt_fim):

@@ -8,7 +8,7 @@ import xmltodict
 
 dire=extr.ler_toml()['pastas']['dir']
 today = datetime.datetime.now()
-dataBase=format(pd.to_datetime(today-datetime.timedelta(183)), '%Y-%m-%d')
+dataBase=format(pd.to_datetime(today-datetime.timedelta(365)), '%Y-%m-%d')
 
 
 def atualizar_situacao(pedidos_vendas):
@@ -33,9 +33,9 @@ def vendas(df_orig, dt_inicial):
   ultimo_pedido_base = df_orig['numero'].max()
   continua=True
   url = f"https://bling.com.br/Api/v3/pedidos/vendas?dataInicial={dt_inicial}&dataFinal={dt_fim}&pagina="
+  #url = f"https://bling.com.br/Api/v3/nfe?&dataEmissaoInicial={dt_inicial}&dataEmissaoFinal={dt_fim}&pagina="
   vendas = url + str(1)
   response_verificar = extr.extrai(vendas)
-
   try:
     ultimo_pedido=response_verificar.json()['data'][0]['numero']
   except:
@@ -46,6 +46,7 @@ def vendas(df_orig, dt_inicial):
     dt_fim1 = response_verificar.json()['data'][0]['data']
     dt_inicial=list(df_orig[df_orig['numero']==ultimo_pedido_base]['data'])[0]
     url = f"https://bling.com.br/Api/v3/pedidos/vendas?dataInicial={dt_inicial}&dataFinal={dt_fim1}&pagina="
+    #url = f"https://bling.com.br/Api/v3/nfe?&dataEmissaoInicial={dt_inicial}&dataEmissaoFinal={dt_fim1}&pagina="
     cont = 0
     cont_bar=0
     df=pd.DataFrame()
@@ -63,8 +64,11 @@ def vendas(df_orig, dt_inicial):
         df_vendas=pd.DataFrame(response_vendas.json()['data'])
         if len(df_vendas)>0:
           df_vendas = sit.situacao(df_vendas)
-          df_vendas = id_canal_venda(df_vendas)
+          #df_vendas = id_canal_venda(df_vendas)
+          df_vendas['id_canal_venda'] = pd.DataFrame(list(df_vendas['loja']))
+          df_vendas.drop(columns={'loja', 'contato'}, inplace=True)
           df_vendas=df_vendas.reset_index()
+          df_vendas.drop(columns={'index'}, inplace=True)
           df = pd.concat([df, df_vendas])
           try:
             df.drop(columns={'index', 'level_0'}, inplace=True)
@@ -76,16 +80,22 @@ def vendas(df_orig, dt_inicial):
           continua=False
       else:
         continua=False
-    df_orig.drop(columns={'index', 'level_0'}, inplace=True)
+    try:
+      df_orig.drop(columns={'index', 'level_0'}, inplace=True)
+    except:
+      pass
     df_orig = df_orig.drop_duplicates()
     df_orig=df_orig.reset_index()
-    df_orig.query('numero!=0 and Descr_situacao=="Finalizado" and Descr_situacao!="Cancelado"').to_parquet(f'{dire}pedidos_venda.parquet')
+    #df_orig.query('numero!=0 and Descr_situacao=="Finalizado" and Descr_situacao!="Cancelado"').to_parquet(f'{dire}pedidos_venda.parquet')
+    df_orig['numero'] = df_orig['numero'].astype('int')
+    df_orig.to_parquet(f'{dire}pedidos_venda.parquet')
     if reiniciar!=True:
       df.drop(columns={'index', 'level_0'}, inplace=True)
     df = df.drop_duplicates()
     if len(df)>0:
       nf_falta(df, reiniciar)
-    my_bar.empty()
+  fatura(dt_inicial, dt_fim)
+  my_bar.empty()
   return True
 
 
@@ -173,8 +183,33 @@ def extrair_prod_peso():
     response_peso = extr.extrai(url)
     mercadoria.append(response_peso.json()['data']['pesoBruto'])
 
+def fatura(data_inicial, data_fim):
+  url = f"https://bling.com.br/Api/v3/nfe?dataEmissaoInicial={data_inicial}&dataEmissaoFinal={data_fim}&pagina="
+  continua = True
+  cont = 0
+  cont_bar = 0
+  df_nf = pd.DataFrame()
 
-
+  my_bar = st.progress(0, text="Extrair NF")
+  while continua:
+    cont = cont + 1
+    cont_bar = cont_bar + 1
+    if cont_bar > 99:
+      cont_bar = 0
+    my_bar.progress(cont_bar, text=f'Notas Lidas...: {cont_bar}')
+    NF = url + str(cont)
+    response_nf = extr.extrai(NF)
+    if response_nf.status_code == 200 and len(response_nf.json()['data']) > 0:
+      cont_linha = 0
+      df_nf = pd.concat(
+          [df_nf, pd.DataFrame(response_nf.json()['data'])[['id', 'numero', 'dataEmissao']]])
+    else:
+      continua = False
+  df_nf = df_nf.reset_index()
+  df_nf['data'] = pd.DataFrame(list(df_nf['dataEmissao'].str.split(' ')))[0]
+  df_nf.drop(columns={'index', 'dataEmissao'}, inplace=True)
+  pd.DataFrame(df_nf).to_parquet(f'{dire}faturas.parquet')
+  my_bar.empty()
 
 
 def valida_dados(df, dt_inicial):
@@ -191,6 +226,13 @@ def valida_dados(df, dt_inicial):
     else:
       my_bar.empty()
       #impostos_falta()
+
+def id_canal_venda(df_canal):
+  for idx in df_canal.index:
+    df_canal.loc[idx, 'id_canal_venda'] = int(df_canal['loja'][idx]['id'])
+  df_canal['id_canal_venda']=df_canal['id_canal_venda'].astype('int')
+  df_canal.drop(columns={'loja','contato'}, inplace=True)
+  return df_canal
 
 #FUNÇÕES SEM USO
 def impostos_falta():
@@ -343,9 +385,4 @@ def Exportxml(id_nota):
   my_bar.empty()
 
 
-def id_canal_venda(df_canal):
-  for idx in df_canal.index:
-    df_canal.loc[idx, 'id_canal_venda'] = int(df_canal['loja'][idx]['id'])
-  df_canal['id_canal_venda']=df_canal['id_canal_venda'].astype('int')
-  df_canal.drop(columns={'loja','contato'}, inplace=True)
-  return df_canal
+

@@ -43,7 +43,7 @@ def produtos_vendidos(id):
     id_merc=[]
     df_nf = pd.read_parquet(f'{dire}notas_fiscais.parquet')
     #df_nf=df_nf.drop(columns={'index', 'level_0'})
-    df_nf=df_nf.query(f'id in {id}')
+    df_nf=df_nf.query(f'Emitida in {id}')
     df_nf=df_nf.reset_index()
     for idx in df_nf.index:
         df = pd.DataFrame(list(df_nf['itens'][idx]))
@@ -60,7 +60,7 @@ def produtos_vendidos(id):
     df_itens = df_itens.merge(canal_venda_local[['id_canal_venda','descricao' ]],left_on='canal_origem', right_on='id_canal_venda' )
     df_itens=df_itens.rename(columns={'descricao':'Canal de Venda'})
     df_itens['R$ Total']=df_itens['Quantidade']*df_itens['valor']
-    colunas=['Canal de Venda','codigo', 'id_merc', 'Descrição Mercadoria', 'Quantidade', 'valor', 'R$ Total', 'Total Custo', 'PREÇO DE CUSTO', 'IMPOSTO', 'Valor_Frete', 'UF', 'peso', 'TipoEnvio', 'CustoEnvio']
+    colunas=['id', 'Canal de Venda','codigo', 'id_merc', 'Descrição Mercadoria', 'Quantidade', 'valor', 'R$ Total', 'Total Custo', 'PREÇO DE CUSTO', 'IMPOSTO', 'Valor_Frete', 'UF', 'peso', 'TipoEnvio', 'CustoEnvio']
     custo=pd.read_parquet(f'{dire}custo.parquet')
     custo.rename(columns={'precoCusto':'PREÇO DE CUSTO'}, inplace=True)
     df_itens['IMPOSTO'] = df_itens['R$ Total'].map(lambda x: x*0.08)
@@ -76,6 +76,7 @@ def produtos_vendidos(id):
 def peso(df):
     EstReg = pd.read_excel(f'{dire}\EstadosRegioes.xlsx')
     custoEnvio = pd.read_excel(f'{dire}\custoEnvio.xlsx')
+
     if os.path.isfile(f'{dire}\pesos.parquet'):
         df_peso = pd.read_parquet(f'{dire}\pesos.parquet')
     else:
@@ -99,7 +100,6 @@ def peso(df):
                     peso=round(response_peso.json()['data']['pesoBruto']*df['Quantidade'][idx],2)
                     df.loc[idx, 'peso']=peso
                     df_peso=pd.concat([df_peso,pd.DataFrame(data={'id_merc':[df_ML['id_merc'][idx]], 'peso': [response_peso.json()['data']['pesoBruto']]})])
-
                 except:
                     pass
             else:
@@ -111,7 +111,7 @@ def peso(df):
             try:
                 df.loc[idx, 'CustoEnvio'] = list(custoEnvio.query(f'Peso<={peso}')[-1:][df['TipoEnvio'][idx]])[0]
             except:
-                pass
+                df.loc[idx, 'CustoEnvio'] = 0.0
     df_peso.query('peso>0.00').to_parquet(f'{dire}\pesos.parquet')
     my_bar.empty()
     return df
