@@ -1,6 +1,6 @@
 
 import pandas as pd
-import app.extrair_informacoes as ext
+import extrair_informacoes as ext
 
 dire=ext.ler_toml()['pastas']['dir']
 
