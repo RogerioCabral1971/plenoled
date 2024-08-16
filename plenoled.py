@@ -21,7 +21,7 @@ if 'custoOperacional' not in st.session_state:
     st.session_state['custoOperacional']=abrirArq.parquet('CustoOperacional')
 custoDia=st.session_state['custoOperacional']['Custo Mensal'].sum()/30
 atualiza=False
-ver=1.2
+ver=1.3
 
 my_bar1 = st.progress(0, text='# :gray-background[ :red[**ATUALIZANDO BASES,  A G U A R D E ...**]]')
 
