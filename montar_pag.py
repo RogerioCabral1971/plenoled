@@ -4,6 +4,7 @@ import relatorio_plenoled as rel
 import locale
 import matplotlib.pyplot as plt
 import extrair_informacoes as ext
+import abrirArq
 from colorama import Fore, Back, Style
 
 locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
@@ -113,7 +114,9 @@ def grafico_resumo_geral(inicio, fim ):
 
 
 def cartao_resumo(df,df2, dias):
-    custo_Operacao=pd.read_parquet(f'{dire}CustoOperacional.parquet')
+    if 'CustoOperacional' not in st.session_state:
+        st.session_state['CustoOperacional']=abrirArq.parquet('CustoOperacional')
+    custo_Operacao=st.session_state['CustoOperacional']
     frete=df2.groupby('Canal de Venda')['Valor_Frete'].sum()
     frete=pd.DataFrame(frete).reset_index()
     df=pd.DataFrame(df).reset_index()

@@ -19,11 +19,17 @@ def situacao(df_vendas):
             desc_situacao.append(desc)
         else:
             temp_situacao = extr.extrai(situacao + str(id2))
-            desc=pd.DataFrame([temp_situacao.json()['data']])['nome'][0]
+            try:
+                desc=pd.DataFrame([temp_situacao.json()['data']])['nome'][0]
+            except:
+                time.sleep(1)
+                temp_situacao = extr.extrai(situacao + str(id2))
+                desc = pd.DataFrame([temp_situacao.json()['data']])['nome'][0]
             desc_situacao.append(desc)
-            time.sleep(0.5)
+        time.sleep(1)
 
     df_situacoes=pd.DataFrame(data={'id_situacao':id_situacao_,'Descr_situacao':desc_situacao})
     df_total=pd.merge(df_vendas,df_situacoes, on='id_situacao')
     df_total.drop(columns={'situacao'}, inplace=True)
+
     return df_total

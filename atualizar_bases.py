@@ -5,10 +5,11 @@ import streamlit as st
 import situacoes as sit
 import datetime
 import xmltodict
+import os
 
 dire=extr.ler_toml()['pastas']['dir']
 today = datetime.datetime.now()
-dataBase=format(pd.to_datetime(today-datetime.timedelta(365)), '%Y-%m-%d')
+dataBase=format(pd.to_datetime(today-datetime.timedelta(366)), '%Y-%m-%d')
 
 
 def atualizar_situacao(pedidos_vendas):
@@ -40,6 +41,7 @@ def vendas(df_orig, dt_inicial):
     ultimo_pedido=response_verificar.json()['data'][0]['numero']
   except:
     if response_verificar.json()['error']['message']=='Limite de requisições atingido.':
+      time.sleep(1)
       response_verificar = extr.extrai(vendas)
       ultimo_pedido = response_verificar.json()['data'][0]['numero']
   if ultimo_pedido!=ultimo_pedido_base:
@@ -90,24 +92,29 @@ def vendas(df_orig, dt_inicial):
     df_orig['numero'] = df_orig['numero'].astype('int')
     df_orig.to_parquet(f'{dire}pedidos_venda.parquet')
     if reiniciar!=True:
-      df.drop(columns={'index', 'level_0'}, inplace=True)
+      try:
+        df.drop(columns={'index', 'level_0'}, inplace=True)
+      except:
+        pass
     df = df.drop_duplicates()
     if len(df)>0:
-      nf_falta(df, reiniciar)
-  fatura(dt_inicial, dt_fim)
+      nf_falta(df)
+  fatura(format(pd.to_datetime(dt_fim) - datetime.timedelta(365), '%Y-%m-%d'), dt_fim)
   my_bar.empty()
   return True
 
 
-def nf_falta(df, reiniciar):
-  if reiniciar:
-    df_nf_orig=pd.DataFrame()
+def nf_falta(df):
+  if os.path.isfile(f'{dire}notas_fiscais.parquet'):
+    df_nf_orig = pd.read_parquet(f'{dire}notas_fiscais.parquet')
   else:
-    df_nf_orig=pd.read_parquet(f'{dire}notas_fiscais.parquet')
+    df_nf_orig = pd.DataFrame()
+    df_nf_orig['id']=0
   df_nf = pd.DataFrame()
   cont=0
   cont_bar=0
   my_bar = st.progress(0, text="Extrair Notas")
+  df=df.query(f'id not in {list(df_nf_orig["id"])}')
   for id in df['id']:
     cont=cont+1
     if cont_bar>99:
@@ -116,9 +123,11 @@ def nf_falta(df, reiniciar):
     my_bar.progress(cont_bar, text=f'Pedidos Lido...: {cont} de {len(df["id"])}')
     url = f"https://bling.com.br/Api/v3/pedidos/vendas/{int(id)}"
     response_vendas = extr.extrai(url)
+    time.sleep(0.3)
     nf = pd.DataFrame([response_vendas.json()['data']])
     nf.loc[0, 'Emitida'] = response_vendas.json()['data']['notaFiscal']['id']
     nf.loc[0, 'SIT'] = response_vendas.json()['data']['situacao']['id']
+    nf.loc[0, 'Contato'] = response_vendas.json()['data']['contato']['nome']
     df_nf = pd.concat([df_nf, nf])
   df_nf = df_nf.query('SIT!=12')
   df_nf = df_nf.query('Emitida>0')
@@ -199,6 +208,7 @@ def fatura(data_inicial, data_fim):
     my_bar.progress(cont_bar, text=f'Notas Lidas...: {cont_bar}')
     NF = url + str(cont)
     response_nf = extr.extrai(NF)
+    time.sleep(1)
     if response_nf.status_code == 200 and len(response_nf.json()['data']) > 0:
       cont_linha = 0
       df_nf = pd.concat(
@@ -206,8 +216,14 @@ def fatura(data_inicial, data_fim):
     else:
       continua = False
   df_nf = df_nf.reset_index()
-  df_nf['data'] = pd.DataFrame(list(df_nf['dataEmissao'].str.split(' ')))[0]
-  df_nf.drop(columns={'index', 'dataEmissao'}, inplace=True)
+  try:
+    df_nf['data'] = pd.DataFrame(list(df_nf['dataEmissao'].str.split(' ')))[0]
+  except:
+    st.rerun
+  try:
+    df_nf.drop(columns={'index', 'dataEmissao'}, inplace=True)
+  except:
+    pass
   pd.DataFrame(df_nf).to_parquet(f'{dire}faturas.parquet')
   my_bar.empty()
 

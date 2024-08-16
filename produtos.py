@@ -4,7 +4,9 @@ import time
 import extrair_informacoes as extr
 import pandas as pd
 import streamlit as st
+import abrirArq
 import logging
+import atualizar_bases
 logger = logging.getLogger('ftpuploader')
 dire=extr.ler_toml()['pastas']['dir']
 
@@ -37,11 +39,17 @@ def plan_produtos():
     return plan
 
 def produtos_vendidos(id):
-    canal_venda_local = pd.read_parquet(f'{dire}canais_venda.parquet')
+    if 'canais_venda' not in st.session_state:
+        st.session_state['canais_venda']=abrirArq.parquet('canais_venda')
+    #canal_venda_local = pd.read_parquet(f'{dire}canais_venda.parquet')
+    canal_venda_local =st.session_state['canais_venda']
     df_itens = pd.DataFrame()
     frete = []
     id_merc=[]
-    df_nf = pd.read_parquet(f'{dire}notas_fiscais.parquet')
+    if 'notas_fiscais' not in st.session_state:
+        st.session_state['notas_fiscais']=abrirArq.parquet('notas_fiscais')
+    #df_nf = pd.read_parquet(f'{dire}notas_fiscais.parquet')
+    df_nf=st.session_state['notas_fiscais']
     #df_nf=df_nf.drop(columns={'index', 'level_0'})
     df_nf=df_nf.query(f'Emitida in {id}')
     df_nf=df_nf.reset_index()
@@ -56,12 +64,25 @@ def produtos_vendidos(id):
         id_merc.append(df_nf['id'][idx])
     df_frete = pd.DataFrame(data={'id_merc': id_merc,'Valor_Frete':frete})
     df_itens = df_itens.rename(columns={'quantidade': 'Quantidade', 'descricao':'Descrição Mercadoria'})
-    df_itens['canal_origem']=df_itens['canal_origem'].astype('int')
+    try:
+        df_itens['canal_origem']=df_itens['canal_origem'].astype('int')
+    except:
+        if os.path.isfile(f'{dire}\pedidos_venda.parquet'):
+            os.remove(f'{dire}pedidos_venda.parquet')
+            st.rerun
+
     df_itens = df_itens.merge(canal_venda_local[['id_canal_venda','descricao' ]],left_on='canal_origem', right_on='id_canal_venda' )
     df_itens=df_itens.rename(columns={'descricao':'Canal de Venda'})
     df_itens['R$ Total']=df_itens['Quantidade']*df_itens['valor']
     colunas=['id', 'Canal de Venda','codigo', 'id_merc', 'Descrição Mercadoria', 'Quantidade', 'valor', 'R$ Total', 'Total Custo', 'PREÇO DE CUSTO', 'IMPOSTO', 'Valor_Frete', 'UF', 'peso', 'TipoEnvio', 'CustoEnvio']
-    custo=pd.read_parquet(f'{dire}custo.parquet')
+    if 'custo' not in st.session_state:
+        st.session_state['custo']=abrirArq.parquet('custo')
+    #custo=pd.read_parquet(f'{dire}custo.parquet')
+    custo=st.session_state['custo']
+    if len(custo)==0:
+        atualizar_bases.extrair_custos()
+        st.session_state['custo'] = abrirArq.parquet('custo')
+        custo = st.session_state['custo']
     custo.rename(columns={'precoCusto':'PREÇO DE CUSTO'}, inplace=True)
     df_itens['IMPOSTO'] = df_itens['R$ Total'].map(lambda x: x*0.08)
     df_itens=df_itens.merge(custo, how='left', left_on='id_merc', right_on='produto')
@@ -74,11 +95,19 @@ def produtos_vendidos(id):
         st.markdown(":red[Erro em: ]" + (str(e).replace('not in index','').replace("['",'').replace("']",'').strip()))
 
 def peso(df):
-    EstReg = pd.read_excel(f'{dire}\EstadosRegioes.xlsx')
-    custoEnvio = pd.read_excel(f'{dire}\custoEnvio.xlsx')
-
+    if 'EstadosRegioes' not in st.session_state:
+        st.session_state['EstadosRegioes']=abrirArq.excel('EstadosRegioes')
+    #EstReg = pd.read_excel(f'{dire}\EstadosRegioes.xlsx')
+    EstReg=st.session_state['EstadosRegioes']
+    if 'custoEnvio' not in st.session_state:
+        st.session_state['custoEnvio']=abrirArq.excel('custoEnvio')
+    #custoEnvio = pd.read_excel(f'{dire}\custoEnvio.xlsx')
+    custoEnvio = st.session_state['custoEnvio']
     if os.path.isfile(f'{dire}\pesos.parquet'):
-        df_peso = pd.read_parquet(f'{dire}\pesos.parquet')
+        if 'pesos' not in st.session_state:
+            st.session_state['pesos']=abrirArq.parquet('pesos')
+        #df_peso = pd.read_parquet(f'{dire}\pesos.parquet')
+        df_peso = st.session_state['pesos']
     else:
         df_peso = pd.DataFrame({'id_merc': [0], 'peso': [0.0]})
     df_ML= df[df['Canal de Venda']=='Mercado Livre']

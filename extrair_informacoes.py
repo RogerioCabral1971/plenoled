@@ -1,4 +1,4 @@
-
+import time
 import requests
 import base64
 import toml
@@ -26,6 +26,7 @@ def extrai(url):
         if response.status_code==401:
             refreshToken()
             #st.warning(response.json()['description'])
+
     return response
 
 def refreshToken():

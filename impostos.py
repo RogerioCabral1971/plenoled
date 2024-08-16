@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import nf as nfe
 import extrair_informacoes as ext
+import abrirArq
 
 dir=ext.ler_toml()['pastas']['dir']
 
@@ -21,7 +22,9 @@ def extr_imposto(df):
   return df
 
 def incl_imposto(df):
-  df_imp=pd.read_parquet(f'{dir}impostos.parquet')
+  if 'impostos' not in st.session_state:
+    st.session_state['impostos']=abrirArq.parquet('impostos')
+  df_imp=st.session_state['impostos']
   df_imp.query(f'id in ({list(df["id"])})')
   df=df.merge(df_imp, left_on='id', right_on='id')
   return df

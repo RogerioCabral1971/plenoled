@@ -8,16 +8,18 @@ import atualizar_bases
 import extrair_informacoes as ext
 import relatorio_plenoled as rel
 import baixar_atualização
+import abrirArq
 
 # CONFIGURAÇÃO DA PAGINA
 st.set_page_config(layout='wide', page_title='PlenoLed',initial_sidebar_state='collapsed')
 
 today=datetime.date.today()
-dt_inicio=today-datetime.timedelta(15)
+dt_inicio=today-datetime.timedelta(90)
 dia=datetime.timedelta(1)
 dire=ext.ler_toml()['pastas']['dir']
-custoOperacional=pd.read_parquet(f'{dire}CustoOperacional.parquet')
-custoDia=custoOperacional['Custo Mensal'].sum()/30
+if 'custoOperacional' not in st.session_state:
+    st.session_state['custoOperacional']=abrirArq.parquet('CustoOperacional')
+custoDia=st.session_state['custoOperacional']['Custo Mensal'].sum()/30
 atualiza=False
 ver=1.2
 
@@ -35,8 +37,10 @@ if os.path.isfile(f'{dire}\pedidos_venda.parquet'):
         atualizar_bases.extrair_custos()
         atualiza=True
 else:
-    atualizar_bases.extrair_custos()
+    st.session_state.clear()
     atualiza = True
+    atualizar_bases.extrair_custos()
+
 
 
 with open(f'{dire}styles.css') as f:
@@ -77,7 +81,7 @@ def gerar_relatorios_tela(inicial, fim):
             with col_aba4_1:
                 with st.container(height=650):
                     contem = st.container()
-                    custos = st.data_editor(custoOperacional, hide_index=True, num_rows='dynamic')
+                    custos = st.data_editor(st.session_state['custoOperacional'], hide_index=True, num_rows='dynamic')
                     if contem.button('Salvar'):
                         custos.to_parquet(f'{dire}CustoOperacional.parquet')
                         st.rerun()
@@ -102,7 +106,7 @@ def gerar_relatorios_tela(inicial, fim):
                     1. :orange[Tray]
                     
                     :orange[CUSTO POR DIA:] :blue-background[{locale.currency(custoDia,grouping=True)}]
-                    :orange[CUSTO POR MÊS:] :blue-background[{locale.currency(custoOperacional['Custo Mensal'].sum(),grouping=True)}]
+                    :orange[CUSTO POR MÊS:] :blue-background[{locale.currency(st.session_state['custoOperacional']['Custo Mensal'].sum(),grouping=True)}]
                     
                     ***O custo acima são valores informados na Tabela ao Lado, não estão somados aqui os custo que são calculados de acordo com o*** :blue-background[percentual da venda]
                     ''')
@@ -121,16 +125,27 @@ with st.container(border=True):
 
     periodo=menu.date_input('Selecione o Periodo', value=(pd.to_datetime(f'{today-datetime.timedelta(30)}'), pd.to_datetime(f'{today}')))
     CTbut = menu.container()
-    menu.markdown("""Período para Analise das vendas( :orange[Dados armazenado de 6 meses] )""")
+    menu.markdown("""Período para Analise das vendas( :orange[Dados armazenado de 12 meses] )""")
 
-    #st.session_state['custo_operacional'] = pd.read_parquet(f'{dire}CustoOperacional.parquet')
 
     menu.divider()
     if menu.button('Resetar Aplicativo'):
-        os.remove(f'{dire}pedidos_venda.parquet')
-        os.remove(f'{dire}pesos.parquet')
+        data=format(pd.to_datetime(today-datetime.timedelta(60)), '%Y-%m-%d')
+        if os.path.isfile(f'{dire}\pedidos_venda.parquet'):
+            if 'pedidos_venda' not in st.session_state:
+                st.session_state['pedidos_venda']=abrirArq.parquet('pedidos_venda')
+                id=st.session_state['pedidos_venda'].query(f'data>="{data}"')['id']
+                st.session_state['notas_fiscais'].query(f'id not in {list(id)}').to_parquet(f'{dire}notas_fiscais.parquet')
+        if os.path.isfile(f'{dire}\pedidos_venda.parquet'):
+            os.remove(f'{dire}pedidos_venda.parquet')
+        if os.path.isfile(f'{dire}\pesos.parquet'):
+            os.remove(f'{dire}pesos.parquet')
+        if os.path.isfile(fr'{dire}\faturas.parquet'):
+            os.remove(f'{dire}faturas.parquet')
         st.session_state.clear()
+        #atualiza=True
         st.rerun()
+
     menu.markdown("""Limpar dados Armazenados local e baixar dados antigos e novos ( :orange[Será feito limpeza e baixado todas as informações novamente do Bling] )""")
     menu.divider()
 
@@ -146,7 +161,10 @@ with st.container(border=True):
 
 if atualiza:
     if os.path.isfile(f'{dire}pedidos_venda.parquet'):
-        vendas=pd.read_parquet(f'{dire}pedidos_venda.parquet')
+        if 'pedidos_venda' not in st.session_state:
+            st.session_state['pedidos_venda']=abrirArq.parquet('pedidos_venda')
+        #vendas=pd.read_parquet(f'{dire}pedidos_venda.parquet')
+        vendas = st.session_state['pedidos_venda']
         dt_inicial = pd.to_datetime(vendas['data'].max())
 
     else:
@@ -159,7 +177,9 @@ if atualiza:
 
     if dt_inicial!=format(atualizar_bases.dataBase):
         if len(vendas)==0:
-            vendas=pd.read_parquet(f'{dire}pedidos_venda.parquet')
+            if 'pedidos_venda' not in st.session_state:
+                st.session_state['pedidos_venda']=pd.read_parquet(f'{dire}pedidos_venda.parquet')
+            vendas=st.session_state['pedidos_venda']
     #atualizar_bases.atualizar_situacao(vendas)
 #atualizar_bases.valida_dados(vendas, dt_inicial)
 aba1, aba2, aba3, aba4 = st.tabs(['Histórico de Vendas', 'Resumo Canal de Venda', 'Resumo por Mercadoria', 'Custos Fixos'])
